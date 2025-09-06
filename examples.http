@@ -1,0 +1,198 @@
+### Variables
+@baseUrl = http://localhost:8080
+@contentType = application/json
+@accept = application/hal+json
+
+### Create user: alice
+POST {{baseUrl}}/users
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "username": "alice"
+}
+> {% client.global.set("aliceId", response.body.id); %}
+
+### Create user: bob
+POST {{baseUrl}}/users
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "username": "bob"
+}
+> {% client.global.set("bobId", response.body.id); %}
+
+### Create user: carol
+POST {{baseUrl}}/users
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "username": "carol"
+}
+> {% client.global.set("carolId", response.body.id); %}
+
+### Get user by id (alice)
+GET {{baseUrl}}/users/{{aliceId}}
+Accept: {{accept}}
+
+### Create or get a direct thread between alice and bob
+PUT {{baseUrl}}/threads/direct
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "user1Id": "{{aliceId}}",
+  "user2Id": "{{bobId}}"
+}
+> {% client.global.set("directThreadId", response.body.id); %}
+
+### Post message in direct thread (alice -> bob)
+POST {{baseUrl}}/threads/{{directThreadId}}/messages
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "senderId": "{{aliceId}}",
+  "content": "Hi Bob!"
+}
+> {% client.global.set("directMsg1Id", response.body.id); %}
+
+### Post message in direct thread (bob -> alice)
+POST {{baseUrl}}/threads/{{directThreadId}}/messages
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "senderId": "{{bobId}}",
+  "content": "Hi Alice!"
+}
+> {% client.global.set("directMsg2Id", response.body.id); %}
+
+### List messages in direct thread (paged)
+GET {{baseUrl}}/threads/{{directThreadId}}/messages?page=0&size=10
+Accept: {{accept}}
+
+### Get single message by id (first direct message)
+GET {{baseUrl}}/threads/{{directThreadId}}/messages/{{directMsg1Id}}
+Accept: {{accept}}
+
+### Create a group thread with alice, bob, carol (with initial message from alice)
+POST {{baseUrl}}/threads/group
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "participantIds": ["{{aliceId}}", "{{bobId}}", "{{carolId}}"],
+  "name": "Team Chat",
+  "senderId": "{{aliceId}}",
+  "initialMessage": "Welcome team!"
+}
+> {% client.global.set("groupThreadId", response.body.id); %}
+
+### Post message in group thread (bob -> group)
+POST {{baseUrl}}/threads/{{groupThreadId}}/messages
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "senderId": "{{bobId}}",
+  "content": "Hello all!"
+}
+
+### Post message in group thread (carol -> group)
+POST {{baseUrl}}/threads/{{groupThreadId}}/messages
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "senderId": "{{carolId}}",
+  "content": "Hi!"
+}
+
+### Get group thread by id
+GET {{baseUrl}}/threads/{{groupThreadId}}
+Accept: {{accept}}
+
+### List messages in group thread
+GET {{baseUrl}}/threads/{{groupThreadId}}/messages?page=0&size=20
+Accept: {{accept}}
+
+### List threads visible to alice
+GET {{baseUrl}}/users/{{aliceId}}/threads?page=0&size=10
+Accept: {{accept}}
+
+### List threads visible to bob
+GET {{baseUrl}}/users/{{bobId}}/threads?page=0&size=10
+Accept: {{accept}}
+
+### List threads visible to carol
+GET {{baseUrl}}/users/{{carolId}}/threads?page=0&size=10
+Accept: {{accept}}
+
+###
+### Error scenarios
+###
+
+### ERROR: Create direct thread with same user (should be 400)
+PUT {{baseUrl}}/threads/direct
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "user1Id": "{{aliceId}}",
+  "user2Id": "{{aliceId}}"
+}
+
+### ERROR: Create group with fewer than 3 participants (should be 400)
+POST {{baseUrl}}/threads/group
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "participantIds": ["{{aliceId}}", "{{bobId}}"],
+  "name": "Too Small Group"
+}
+
+### Create user: dave (for non-participant error case)
+POST {{baseUrl}}/users
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "username": "dave"
+}
+> {% client.global.set("daveId", response.body.id); %}
+
+### ERROR: Post message to group thread by non-participant (should be 400)
+POST {{baseUrl}}/threads/{{groupThreadId}}/messages
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "senderId": "{{daveId}}",
+  "content": "Let me in!"
+}
+
+### ERROR: Post empty content (should be 400)
+POST {{baseUrl}}/threads/{{directThreadId}}/messages
+Accept: {{accept}}
+Content-Type: {{contentType}}
+
+{
+  "senderId": "{{aliceId}}",
+  "content": ""
+}
+
+###
+### Actuator endpoints
+###
+
+### Health
+GET {{baseUrl}}/actuator/health
+Accept: application/json
+
+### Metrics root
+GET {{baseUrl}}/actuator/metrics
+Accept: application/json
